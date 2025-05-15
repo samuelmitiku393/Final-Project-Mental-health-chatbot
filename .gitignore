@@ -1,0 +1,82 @@
+# ===============================
+# Node.js / React (admin + frontend)
+# ===============================
+
+# Dependencies
+**/node_modules/
+admin/node_modules/
+# Build and distribution
+**/build/
+**/dist/
+
+# Coverage output
+**/coverage/
+
+# Public folders 
+**/public/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+
+# Lock files
+**/package-lock.json
+**/yarn.lock
+
+# Environment variables
+**/.env
+**/.env.*
+!.env.example
+
+# ===============================
+# Python (backend)
+# ===============================
+
+# Python bytecode
+**/__pycache__/
+**/*.py[cod]
+
+# Virtual environments
+**/venv/
+**/env/
+
+# Python environment files
+**/.env
+**/.env.*
+
+# Packaging
+**/*.egg-info/
+**/build/
+**/dist/
+
+# Testing and cache
+**/.pytest_cache/
+**/.coverage
+**/.mypy_cache/
+**/.hypothesis/
+
+# Model, NLP, or data files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.h5
+**/*.bin
+**/*.model
+**/*.json
+
+# ===============================
+# IDE / Editor
+# ===============================
+.vscode/
+.idea/
+*.swo
+*.swp
+
+# ===============================
+# OS-specific
+# ===============================
+.DS_Store
+Thumbs.db

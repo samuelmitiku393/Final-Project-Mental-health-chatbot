@@ -1,0 +1,10 @@
+version: 1.0.0
+description: API for mental health support chatbot with NLP capabilities
+contact:
+  name: Samuel Mitiku
+  email: samuelmitiku393@gmail.com
+license:
+  name: MIT
+cors:
+  allowed_origins:
+    - "http://localhost:3000"
