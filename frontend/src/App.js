@@ -1,10 +1,12 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ChatApp from "./components/ChatApp";
-import PrivateRoute from "./components/PrivateRoute";
-import TherapistProfile from "./components/TherapistProfile";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import ChatApp from "./components/chat/ChatApp";
+import TherapistProfile from "./components/therapist/TherapistProfile";
+import PrivateRoute from "./shared/PrivateRoute";
+import HomePage from "./components/home/HomePage"; // 👈 New HomePage
+
 function App() {
   return (
     <Router>
@@ -25,6 +27,14 @@ function App() {
           element={
             <PrivateRoute>
               <TherapistProfile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <PrivateRoute>
+              <HomePage />
             </PrivateRoute>
           }
         />

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
+import api from "../../api/axiosInstance";
 
 const AuthContainer = styled.div`
   height: 100vh;

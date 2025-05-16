@@ -8,14 +8,18 @@ import React, {
 } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../auth/AuthContext";
 
 // Lazy-loaded components
 const Chatbox = lazy(() => import("./Chatbox"));
-const SymptomAssessment = lazy(() => import("./SymptomAssessment"));
-const MoodTracking = lazy(() => import("./MoodTracking"));
-const ResourceLibrary = lazy(() => import("./ResourceLibrary"));
-const TherapistDirectory = lazy(() => import("./TherapistDirectory"));
+const SymptomAssessment = lazy(() =>
+  import("../symptomAssesment/SymptomAssessment")
+);
+const MoodTracking = lazy(() => import("../mood/MoodTracking"));
+const ResourceLibrary = lazy(() => import("../resources/ResourceLibrary"));
+const TherapistDirectory = lazy(() =>
+  import("../therapist/TherapistDirectory")
+);
 
 // Styled Components
 const AppWrapper = styled.div`

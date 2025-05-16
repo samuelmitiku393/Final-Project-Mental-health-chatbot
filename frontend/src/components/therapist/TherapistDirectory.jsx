@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import styled from "styled-components";
 import TherapistCard from "./TherapistCard";
-import SearchFilters from "./SearchFilters";
+import SearchFilters from "../search/SearchFilters";
 import axios from "axios";
-import { AuthContext } from "../context/AuthContext";
+import { AuthContext } from "../auth/AuthContext";
 
 const Container = styled.div`
   padding: 20px;

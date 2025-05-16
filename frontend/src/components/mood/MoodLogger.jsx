@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import axiosInstance from "../api/axiosInstance";
-import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../../api/axiosInstance";
+import { useAuth } from "../auth/AuthContext";
 
 const Container = styled.div`
   background: #fefefe;

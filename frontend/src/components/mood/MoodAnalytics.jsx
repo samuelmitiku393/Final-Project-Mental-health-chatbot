@@ -12,8 +12,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import axiosInstance from "../api/axiosInstance";
-import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../../api/axiosInstance";
+import { useAuth } from "../auth/AuthContext";
 
 ChartJS.register(
   CategoryScale,

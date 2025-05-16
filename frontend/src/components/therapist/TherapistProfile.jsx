@@ -14,37 +14,43 @@ import {
   FaVideo,
   FaNetworkWired,
 } from "react-icons/fa";
-import LoadingSpinner from "./LoadingSpinner";
+import LoadingSpinner from "../../shared/LoadingSpinner";
 
 const Container = styled.div`
-  padding: 30px;
+  padding: 20px;
   background: #f5f7fa;
   min-height: 100vh;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
 `;
 
 const ProfileCard = styled.div`
-  max-width: 800px;
-  margin: auto;
+  max-width: 900px;
+  margin: 0 auto;
   background: white;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const CardHeader = styled.div`
   background: linear-gradient(135deg, #667eea, #764ba2);
-  padding: 30px;
+  padding: 20px;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 15px;
   color: white;
 `;
 
 const Photo = styled.img`
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   object-fit: cover;
   border: 3px solid white;
@@ -52,45 +58,49 @@ const Photo = styled.img`
 
 const Name = styled.h2`
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
 `;
 
 const Text = styled.p`
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   color: #4a5568;
-  line-height: 1.6;
+  line-height: 1.4;
+  font-size: 0.9rem;
 `;
 
 const Section = styled.div`
-  padding: 20px 30px;
-  border-top: 1px solid #edf2f7;
-  background-color: ${(props) => (props.highlight ? "#f8fafc" : "white")};
+  padding: 15px;
+  border-bottom: 1px solid #edf2f7;
+  &:nth-child(odd) {
+    border-right: 1px solid #edf2f7;
+  }
 `;
 
 const LabelRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
 
   h4 {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1rem;
     color: #2d3748;
   }
 
   svg {
     color: #3b4cca;
+    font-size: 0.9rem;
   }
 `;
 
 const Badge = styled.span`
   background: #e0e7ff;
   color: #3b4cca;
-  padding: 6px 12px;
-  margin: 5px;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 4px 8px;
+  margin: 3px;
+  border-radius: 4px;
+  font-size: 0.8rem;
   font-weight: 500;
   display: inline-block;
 `;
@@ -103,27 +113,29 @@ const SectionGrid = styled.div`
 const InfoRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: #4a5568;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
 
   svg {
     color: #3b4cca;
+    font-size: 0.9rem;
   }
 `;
 
 const LinkList = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 
   a {
     color: #3b4cca;
     text-decoration: none;
     background: #edf2f7;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.95rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
 
     &:hover {
       background: #e0e7ff;
@@ -135,16 +147,17 @@ const ContactButton = styled.button`
   background: #3b4cca;
   color: white;
   border: none;
-  padding: 14px 24px;
+  padding: 10px;
   border-radius: 6px;
   font-weight: 500;
   cursor: pointer;
   width: 100%;
-  font-size: 1rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 10px;
 
   &:hover {
     background: #2f3aa3;
@@ -155,29 +168,25 @@ const BackButton = styled.button`
   background: #f0f4ff;
   color: #3b4cca;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 15px;
   border-radius: 6px;
   font-weight: 500;
   cursor: pointer;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font-size: 0.9rem;
 
   &:hover {
     background: #e0e7ff;
-    transform: translateX(-3px);
-  }
-
-  span {
-    font-size: 1.2rem;
   }
 `;
 
 const ErrorMessage = styled.div`
   color: #e53e3e;
   background: #fff5f5;
-  padding: 20px;
+  padding: 15px;
   border-radius: 8px;
   text-align: center;
   max-width: 800px;
@@ -268,22 +277,21 @@ const TherapistProfile = () => {
         <CardHeader>
           <Photo
             src={
-              therapist.photo ||
-              "https://via.placeholder.com/120?text=Therapist"
+              therapist.photo || "https://via.placeholder.com/80?text=Therapist"
             }
             alt={`${therapist.name}'s profile`}
             onError={(e) =>
-              (e.target.src = "https://via.placeholder.com/120?text=Therapist")
+              (e.target.src = "https://via.placeholder.com/80?text=Therapist")
             }
           />
           <div>
             <Name>{therapist.name}</Name>
-            <p>{therapist.credentials}</p>
-            <p>📍 {therapist.location}</p>
+            <Text>{therapist.credentials}</Text>
+            <Text>📍 {therapist.location}</Text>
           </div>
         </CardHeader>
 
-        <Section highlight>
+        <Section>
           <LabelRow>
             <FaInfoCircle />
             <h4>About</h4>
@@ -309,7 +317,7 @@ const TherapistProfile = () => {
           <Section>
             <LabelRow>
               <FaLanguage />
-              <h4>Languages Spoken</h4>
+              <h4>Languages</h4>
             </LabelRow>
             <Text>{therapist.languages.join(", ")}</Text>
           </Section>
@@ -319,7 +327,7 @@ const TherapistProfile = () => {
           <Section>
             <LabelRow>
               <FaShieldAlt />
-              <h4>Insurance Accepted</h4>
+              <h4>Insurance</h4>
             </LabelRow>
             <Text>{therapist.insurance.join(", ")}</Text>
           </Section>
@@ -329,10 +337,10 @@ const TherapistProfile = () => {
           <Section>
             <LabelRow>
               <FaVideo />
-              <h4>Available Services</h4>
+              <h4>Services</h4>
             </LabelRow>
             <Badge style={{ background: "#48bb78", color: "white" }}>
-              Telehealth Available
+              Telehealth
             </Badge>
           </Section>
         )}
@@ -343,9 +351,7 @@ const TherapistProfile = () => {
               <FaUserClock />
               <h4>Experience</h4>
             </LabelRow>
-            <InfoRow>
-              <Text>{therapist.years_of_experience} years of experience</Text>
-            </InfoRow>
+            <Text>{therapist.years_of_experience} years</Text>
           </Section>
         )}
 
@@ -355,9 +361,7 @@ const TherapistProfile = () => {
               <FaCalendarAlt />
               <h4>Availability</h4>
             </LabelRow>
-            <InfoRow>
-              <Text>{therapist.availability}</Text>
-            </InfoRow>
+            <Text>{therapist.availability}</Text>
           </Section>
         )}
 
@@ -367,9 +371,7 @@ const TherapistProfile = () => {
               <FaPhoneAlt />
               <h4>Phone</h4>
             </LabelRow>
-            <InfoRow>
-              <Text>{therapist.phone_number}</Text>
-            </InfoRow>
+            <Text>{therapist.phone_number}</Text>
           </Section>
         )}
 
@@ -379,21 +381,20 @@ const TherapistProfile = () => {
               <FaGlobe />
               <h4>Website</h4>
             </LabelRow>
-            <InfoRow>
-              <a
-                href={therapist.website}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {therapist.website}
-              </a>
-            </InfoRow>
+            <a
+              href={therapist.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: "0.9rem" }}
+            >
+              {therapist.website}
+            </a>
           </Section>
         )}
 
         {therapist.social_links &&
           Object.keys(therapist.social_links).length > 0 && (
-            <Section>
+            <Section style={{ gridColumn: "1 / -1" }}>
               <LabelRow>
                 <FaLink />
                 <h4>Social Links</h4>
@@ -413,7 +414,7 @@ const TherapistProfile = () => {
             </Section>
           )}
 
-        <Section>
+        <Section style={{ gridColumn: "1 / -1" }}>
           <ContactButton onClick={handleContact}>
             <FaLink /> Contact Therapist
           </ContactButton>

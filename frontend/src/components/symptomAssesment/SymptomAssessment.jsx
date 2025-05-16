@@ -1,4 +1,3 @@
-// src/components/SymptomAssessment/index.js
 import React, { useState } from "react";
 import styled from "styled-components";
 import AssessmentTools from "./AssessmentTools";
