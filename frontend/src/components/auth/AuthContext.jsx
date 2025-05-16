@@ -6,7 +6,6 @@ import React, {
   useContext,
 } from "react";
 
-// Decode JWT without external libraries
 const decodeToken = (token) => {
   try {
     const base64Url = token.split(".")[1];
@@ -32,15 +31,17 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
   }, []);
 
   const login = useCallback(
-    (token) => {
+    (token, userData) => {
       const decoded = decodeToken(token);
       if (decoded && decoded.exp * 1000 > Date.now()) {
         localStorage.setItem("token", token);
-        setUser(decoded);
+        localStorage.setItem("user", JSON.stringify(userData));
+        setUser(userData);
       } else {
         logout(); // invalid or expired token
       }
@@ -48,18 +49,27 @@ export const AuthProvider = ({ children }) => {
     [logout]
   );
 
+  const isAuthenticated = useCallback(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+
+    const decoded = decodeToken(token);
+    return decoded && decoded.exp * 1000 > Date.now();
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
+    const userData = JSON.parse(localStorage.getItem("user"));
+    if (token && userData) {
       const decoded = decodeToken(token);
       if (decoded && decoded.exp * 1000 > Date.now()) {
-        setUser(decoded);
+        setUser(userData);
       } else {
-        localStorage.removeItem("token");
+        logout();
       }
     }
     setLoading(false);
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,7 +86,9 @@ export const AuthProvider = ({ children }) => {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, loading, isAuthenticated }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

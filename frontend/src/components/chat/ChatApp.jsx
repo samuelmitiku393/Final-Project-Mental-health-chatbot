@@ -1,27 +1,8 @@
-import React, {
-  useState,
-  useEffect,
-  Suspense,
-  lazy,
-  useContext,
-  useMemo,
-} from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../auth/AuthContext";
+import { useAuth } from "../auth/AuthContext";
 
-// Lazy-loaded components
-const Chatbox = lazy(() => import("./Chatbox"));
-const SymptomAssessment = lazy(() =>
-  import("../symptomAssesment/SymptomAssessment")
-);
-const MoodTracking = lazy(() => import("../mood/MoodTracking"));
-const ResourceLibrary = lazy(() => import("../resources/ResourceLibrary"));
-const TherapistDirectory = lazy(() =>
-  import("../therapist/TherapistDirectory")
-);
-
-// Styled Components
 const AppWrapper = styled.div`
   display: flex;
   height: 100vh;
@@ -45,7 +26,7 @@ const Sidebar = styled.div`
     flex-direction: column;
     width: 100%;
     height: auto;
-    display: ${({ isOpen }) => (isOpen ? "flex" : "none")};
+    display: ${({ $isOpen }) => ($isOpen ? "flex" : "none")};
     padding: 10px;
   }
 `;
@@ -153,17 +134,24 @@ function ChatApp() {
   const [activeTab, setActiveTab] = useState("chat");
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const { user, logout } = useContext(AuthContext);
+  const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const tabs = [
+    { key: "chat", label: "💬", title: "Chat" },
+    { key: "assessment", label: "🩺", title: "Symptom Assessment" },
+    { key: "mood", label: "😊", title: "Mood Tracking" },
+    { key: "resources", label: "📚", title: "Resource Library" },
+    { key: "therapists", label: "👩‍⚕️", title: "Therapist Directory" },
+  ];
 
   useEffect(() => {
-    const savedTab = localStorage.getItem("activeTab");
-    if (savedTab) setActiveTab(savedTab);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("activeTab", activeTab);
-  }, [activeTab]);
+    const path = location.pathname.replace("/app/", "");
+    if (path && tabs.some((tab) => tab.key === path)) {
+      setActiveTab(path);
+    }
+  }, [location, tabs]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -174,6 +162,7 @@ function ChatApp() {
   const handleTabChange = (key) => {
     setActiveTab(key);
     setMobileMenuOpen(false);
+    navigate(`/app/${key}`);
   };
 
   const handleLogout = () => {
@@ -182,37 +171,6 @@ function ChatApp() {
       navigate("/login");
     }
   };
-
-  const tabs = useMemo(
-    () => [
-      { key: "chat", label: "💬", title: "Chat", component: <Chatbox /> },
-      {
-        key: "assessment",
-        label: "🩺",
-        title: "Symptom Assessment",
-        component: <SymptomAssessment />,
-      },
-      {
-        key: "mood",
-        label: "😊",
-        title: "Mood Tracking",
-        component: <MoodTracking />,
-      },
-      {
-        key: "resources",
-        label: "📚",
-        title: "Resource Library",
-        component: <ResourceLibrary />,
-      },
-      {
-        key: "therapists",
-        label: "👩‍⚕️",
-        title: "Therapist Directory",
-        component: <TherapistDirectory />,
-      },
-    ],
-    []
-  );
 
   return (
     <AppWrapper>
@@ -227,7 +185,7 @@ function ChatApp() {
         </TopBar>
       )}
 
-      <Sidebar isOpen={!isMobile || isMobileMenuOpen}>
+      <Sidebar $isOpen={!isMobile || isMobileMenuOpen}>
         <div>
           {tabs.map(({ key, label, title }) => (
             <NavButton
@@ -251,17 +209,7 @@ function ChatApp() {
 
       <MainContent>
         <ContentContainer>
-          <Suspense
-            fallback={
-              <div style={{ padding: 20, color: "#fff" }}>Loading...</div>
-            }
-          >
-            {React.cloneElement(
-              tabs.find((tab) => tab.key === activeTab)?.component || (
-                <div style={{ color: "#fff" }}>Tab not found!</div>
-              )
-            )}
-          </Suspense>
+          <Outlet />
         </ContentContainer>
       </MainContent>
     </AppWrapper>
