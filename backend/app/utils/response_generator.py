@@ -1,155 +1,414 @@
 import random
 import re
-import requests
-import os
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional, Tuple, Set
+from enum import Enum
+import logging
+from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
+class ConversationState(Enum):
+    INITIAL = 1
+    FOLLOW_UP = 2
+    RESOLUTION = 3
+    CRISIS = 4
 
 class AIResponseGenerator:
-    def __init__(self, deepseek_api_key: Optional[str] = None):
-        self.responses = {
-            "depression": [
-                "It sounds like you're carrying a heavy emotional burden...",
-                "You're not alone in this. Many people feel this way and find a path forward.",
-                "I'm here to listen. Can you tell me more about what you're feeling?",
+    def __init__(self, intent_manager=None):
+        """Advanced mental health response generator with contextual awareness"""
+        self.responses = self._initialize_responses()
+        self.resources = self._initialize_resources()
+        self.crisis_keywords = self._initialize_crisis_keywords()
+        self._setup_conversation_tracking()
+        self.intent_manager = intent_manager
+
+    def _initialize_responses(self) -> Dict:
+        """Initialize comprehensive response library with actionable strategies"""
+        return {
+            "depression": {
+                "initial": [
+                    "I hear the pain in your words. When feeling this way, try breaking tasks into tiny steps. Would you like to share more?",
+                    "Depression can feel overwhelming. Right now, focus on one small thing you can do today. Want to talk about it?"
+                ],
+                "follow_up": {
+                    "duration": [
+                        "How long have you felt this way? Tracking small wins helps - even getting up is an achievement.",
+                        "Is this recent or ongoing? Noticing patterns helps prepare for tough times."
+                    ],
+                    "triggers": [
+                        "What makes these feelings stronger? Identifying triggers helps build coping strategies.",
+                        "What typically worsens these feelings? Recognizing them is the first step to managing."
+                    ],
+                    "impact": [
+                        "How has this affected your daily life? Be gentle with yourself - basic tasks can feel hard.",
+                        "How has this impacted your routine? Adjusting expectations temporarily can reduce pressure."
+                    ]
+                },
+                "coping": [
+                    "When you've felt this before, what helped slightly? Building on small successes creates momentum.",
+                    "Have any strategies provided relief? Try the 5-minute rule - commit to an activity for just 5 minutes."
+                ],
+                "validation": [
+                    "This sounds incredibly hard. Remember depression lies - your worth isn't defined by current struggles.",
+                    "Living with depression takes strength. Reaching out takes courage when everything feels heavy."
+                ],
+                "professional": [
+                    "A therapist could help develop personalized tools. Want info about professional support?",
+                    "Depression often responds well to treatment. Open to exploring support options?"
+                ],
+                "actionable": [
+                    "Right now, write down one tiny thing you can do today - even drinking water or opening a window.",
+                    "When depressed, try the '5 senses' exercise: Notice one thing you see, hear, touch, smell, and taste."
+                ]
+            },
+            "anxiety": {
+                "initial": [
+                    "Anxiety can feel like a false alarm. Try slow breaths: inhale 4 counts, hold 4, exhale 6. Want to talk about triggers?",
+                    "I hear your worry. Place both feet flat, notice how it feels. Want to explore what's coming up?"
+                ],
+                "follow_up": {
+                    "physical": [
+                        "Noticed physical symptoms like rapid heartbeat? Place a hand on chest, breathe slowly to calm your system.",
+                        "How does your body react to anxiety? Try tensing then releasing each muscle group progressively."
+                    ],
+                    "triggers": [
+                        "What situations trigger these feelings? Identifying them helps prepare calming strategies.",
+                        "Notice any anxiety patterns? Recognizing 'This is my anxiety talking' creates helpful distance."
+                    ],
+                    "frequency": [
+                        "How often does this happen? Daily grounding exercises can build resilience over time.",
+                        "Is this occasional or constant? Regular mindfulness can reduce baseline anxiety."
+                    ]
+                },
+                "grounding": [
+                    "Let's try grounding: Name 3 things you see, 2 you can touch, 1 you hear. How does that feel?",
+                    "When anxious, try 5-4-3-2-1: Notice 5 things around you, 4 touchable, 3 sounds, 2 smells, 1 taste."
+                ],
+                "validation": [
+                    "Managing anxiety is exhausting. You're showing strength by facing these feelings.",
+                    "Anxiety makes everything feel threatening. These feelings will pass, even when they seem permanent."
+                ],
+                "actionable": [
+                    "Try 'box breathing': inhale 4, hold 4, exhale 4, pause 4. Repeat until calmer.",
+                    "When thoughts race, write them down. Seeing them on paper can reduce their intensity."
+                ]
+            },
+            "trauma": {
+                "initial": [
+                    "It sounds like you've been through something difficult. You're safe here to share at your own pace.",
+                    "Talking about trauma can be hard. I'm here when you're ready, with no pressure."
+                ],
+                "follow_up": {
+                    "safety": [
+                        "Do you feel physically and emotionally safe right now? Your safety is most important.",
+                        "Are you in a comfortable place to discuss this? We can pause anytime."
+                    ],
+                    "support": [
+                        "Do you have supportive people who know about this? Connection helps healing.",
+                        "Who in your life is aware of what you've been through? Support systems matter."
+                    ]
+                },
+                "professional": [
+                    "A trauma specialist could help process this safely. Want information about that?",
+                    "Trauma therapists use proven methods for healing. Interested in exploring options?"
+                ],
+                "actionable": [
+                    "If emotions feel overwhelming, try orienting to the present: name objects around you.",
+                    "For trauma triggers, try the 'butterfly hug' - cross arms and alternately tap shoulders."
+                ]
+            },
+            "self_harm": {
+                "initial": [
+                    "I hear your pain. Let's focus on keeping you safe right now. You matter deeply.",
+                    "You're not alone in this. Let's find ways to get through this difficult moment together."
+                ],
+                "safety": [
+                    "Is there someone you can reach out to right now? You deserve support.",
+                    "Has anything helped in past when you felt this way? Let's build on that."
+                ],
+                "professional": [
+                    "I strongly encourage connecting with a mental health professional about this.",
+                    "This is important to discuss with a therapist who can provide proper support."
+                ],
+                "actionable": [
+                    "If urges feel strong, try holding ice cubes - the sensation can help ground you.",
+                    "Try drawing on your skin with red marker where you might self-harm as an alternative."
+                ]
+            },
+            "suicide_risk": {
+                "immediate": [
+                    "I'm deeply concerned for your safety. Please call 988 (Suicide Prevention Lifeline) right now.",
+                    "You're not alone. Text HOME to 741741 (Crisis Text Line) immediately for support."
+                ],
+                "follow_up": [
+                    "Have you had thoughts about how you might harm yourself? Please reach out for help now.",
+                    "Is there someone who can stay with you right now? You shouldn't be alone with these feelings."
+                ]
+            },
+            "greeting": [
+                "Hello, I'm here to listen without judgment. How are you feeling in this moment?",
+                "Welcome. I'm here to support you. What's on your mind today?"
             ],
-            "anxiety": [
-                "Anxiety can feel overwhelming, but you're not alone.",
-                "It helps to talk about it. What's been making you feel anxious lately?",
-                "You're doing your best, and that's enough right now.",
+            "general": [
+                "I want to understand what you're experiencing. Try taking a slow breath before sharing more.",
+                "Thank you for sharing. As we talk, check in with your body - maybe adjust your posture."
             ],
-            "default": [
-                "I want to understand what you're experiencing...",
-                "Thanks for sharing. How long have you been feeling this way?",
-                "Let's take this one step at a time. What's been on your mind?",
+            "positive": [
+                "I'm glad you're feeling better! What helped this improvement? Noticing what works helps.",
+                "That's progress! Consider writing down what helped - creates a personal toolkit."
+            ],
+            "closing": [
+                "Our time is ending, but remember: [personalized tip]. Support is always available.",
+                "Need to wrap up now. Try [relevant technique] if needed later. You're not alone."
             ]
         }
 
-        self.urgent_keywords = {
-            "immediate": ["kill myself", "suicide", "end it all"],
-            "concerning": ["hopeless", "worthless", "no point"]
+    def _initialize_resources(self) -> Dict:
+        """Initialize detailed mental health resources"""
+        return {
+            "depression": [
+                "National Depression Hotline: 1-800-273-TALK (8255) 24/7",
+                "Depression Toolkit: www.depressiontoolkit.org (self-help tools)",
+                "Behavioral Activation Guide: www.getselfhelp.co.uk/docs/BA_Plan.pdf"
+            ],
+            "anxiety": [
+                "Anxiety Canada: www.anxietycanada.com (free courses)",
+                "DARE Anxiety App: www.dareresponse.com (evidence-based help)",
+                "Grounding Techniques: www.getselfhelp.co.uk/docs/Grounding.pdf"
+            ],
+            "crisis": [
+                "Suicide Prevention Lifeline: Call/text 988 24/7",
+                "Crisis Text Line: Text HOME to 741741",
+                "IMAlive Chat: www.imalive.org (trained listeners)"
+            ],
+            "therapy": [
+                "Psychology Today: www.psychologytoday.com (search therapists)",
+                "Open Path: www.openpathcollective.org ($30-60 sessions)",
+                "BetterHelp: www.betterhelp.com (online counseling)"
+            ]
         }
 
-        self.intent_keywords = {
-            "depression": ["depress", "sad", "hopeless", "empty", "lonely"],
-            "anxiety": ["anxious", "worry", "panic", "nervous", "uneasy"]
+    def _initialize_crisis_keywords(self) -> Dict:
+        """Initialize crisis keyword detection system"""
+        return {
+            "immediate": {
+                "keywords": ["kill myself", "end my life", "suicide plan", "want to die"],
+                "threshold": 1
+            },
+            "concerning": {
+                "keywords": ["can't go on", "no reason to live", "better off dead", "don't want to exist"],
+                "threshold": 2
+            }
         }
 
-        self.conversation_history = []
-        self.user_name = None
-        self.last_intent = None
-
-        self.deepseek_api_key = deepseek_api_key
-        self.api_url = "https://api.deepseek.ai/v1/chat/completions"
-
-        self.sentiment_words = {
-            "positive": ["hope", "better", "improve", "optimistic", "relief"],
-            "negative": ["worst", "terrible", "hopeless", "worthless", "panic"]
+    def _setup_conversation_tracking(self):
+        """Initialize conversation tracking system"""
+        self.conversation_context = {
+            "current_topic": None,
+            "state": ConversationState.INITIAL,
+            "user_info": {
+                "name": None,
+                "therapy_history": None,
+                "medication": None,
+                "support_system": None
+            },
+            "message_history": [],
+            "sentiment_trend": [],
+            "start_time": datetime.now()
         }
 
-    def _detect_urgency(self, message: str) -> Optional[str]:
-        lower_msg = message.lower()
-        for phrase in self.urgent_keywords["immediate"]:
-            if phrase in lower_msg:
-                return "immediate"
-        for phrase in self.urgent_keywords["concerning"]:
-            if phrase in lower_msg:
-                return "concerning"
+    def generate_response(self, message: str, intent: Optional[str] = None) -> str:
+        """
+        Generate contextually appropriate mental health response
+        Args:
+            message: User's input message
+            intent: Optional pre-determined intent
+        Returns:
+            Generated response with support strategies
+        """
+        self._update_conversation_context(message)
+        
+        crisis_level = self._assess_crisis_risk(message)
+        if crisis_level:
+            return self._handle_crisis_situation(crisis_level)
+            
+        if not intent:
+            intent = self._determine_intent(message)
+            
+        return self._generate_contextual_response(intent, message)
+
+    def _update_conversation_context(self, message: str):
+        """Update conversation tracking with new message"""
+        self.conversation_context["message_history"].append(message)
+        sentiment = self._analyze_sentiment(message)
+        self.conversation_context["sentiment_trend"].append(sentiment)
+        self._extract_user_info(message)
+
+    def _assess_crisis_risk(self, message: str) -> Optional[str]:
+        """Check for crisis language with enhanced detection"""
+        message_lower = message.lower()
+        
+        for level, data in self.crisis_keywords.items():
+            count = sum(1 for kw in data["keywords"] if kw in message_lower)
+            if count >= data["threshold"]:
+                return level
         return None
 
-    def _get_rule_based_response(self, intent: str) -> str:
-        options = self.responses.get(intent, self.responses["default"])
-        return random.choice(options)
+    def _handle_crisis_situation(self, level: str) -> str:
+        """Generate immediate crisis response with resources"""
+        self.conversation_context["state"] = ConversationState.CRISIS
+        
+        if level == "immediate":
+            response = random.choice(self.responses["suicide_risk"]["immediate"])
+            resources = "\n".join(self.resources["crisis"])
+            return f"{response}\n\nImmediate help:\n{resources}"
+        else:
+            response = random.choice(self.responses["self_harm"]["initial"])
+            follow_up = random.choice(self.responses["self_harm"]["safety"])
+            return f"{response}\n\n{follow_up}"
 
-    def _call_deepseek_api(self, message: str) -> str:
-        if not self.deepseek_api_key:
-            return self._get_rule_based_response("default")
-
-        headers = {
-            "Authorization": f"Bearer {self.deepseek_api_key}",
-            "Content-Type": "application/json"
+    def _determine_intent(self, message: str) -> str:
+        """Determine intent from message content"""
+        if self._assess_crisis_risk(message):
+            return "suicide_risk"
+            
+        topic_keywords = {
+            "depression": ["depress", "hopeless", "worthless", "empty"],
+            "anxiety": ["anxious", "panic", "overwhelmed", "nervous"],
+            "trauma": ["trauma", "abuse", "PTSD", "flashback"],
+            "self_harm": ["cutting", "self-harm", "hurt myself"],
+            "greeting": ["hello", "hi", "hey", "start"]
         }
+        
+        message_lower = message.lower()
+        for intent, keywords in topic_keywords.items():
+            if any(kw in message_lower for kw in keywords):
+                return intent
+                
+        if self.conversation_context["sentiment_trend"]:
+            avg_sentiment = sum(self.conversation_context["sentiment_trend"]) / len(self.conversation_context["sentiment_trend"])
+            if avg_sentiment > 0.3:
+                return "positive"
+                
+        return "general"
 
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You're a compassionate mental health supporter. "
-                               "Respond with empathy and care. Keep responses under 3 sentences. "
-                               "If urgent risk is detected, provide crisis resources."
-                },
-                {
-                    "role": "user",
-                    "content": message
-                }
-            ],
-            "temperature": 0.7,
-            "max_tokens": 150
-        }
-
-        try:
-            response = requests.post(self.api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
-        except Exception as e:
-            print(f"API Error: {e}")
-            return self._get_rule_based_response("default")
-
-    def _personalize_response(self, response: str, message: str) -> str:
-        if self.user_name:
-            response = response.replace("you", f"you, {self.user_name}", 1)
-
-        sentiment = self._analyze_sentiment(message)
-        if sentiment < -0.5:
-            response = "I hear the pain in your words... " + response
+    def _generate_contextual_response(self, intent: str, message: str) -> str:
+        """Generate response with immediate coping strategies"""
+        if intent not in self.responses:
+            intent = "general"
+            
+        if random.random() < 0.7 and "actionable" in self.responses[intent]:
+            response = random.choice(self.responses[intent]["actionable"])
+        elif self.conversation_context["state"] == ConversationState.INITIAL:
+            response = self._get_initial_response(intent)
+        elif self.conversation_context["state"] == ConversationState.FOLLOW_UP:
+            response = self._get_follow_up_response(intent)
+        else:
+            response = random.choice(self.responses[intent])
+            
+        response = self._personalize_response(response)
+        
+        if self._should_include_resources(intent):
+            response += self._get_resources(intent)
+            
         return response
 
+    def _get_initial_response(self, intent: str) -> str:
+        """Get initial response with topic setup"""
+        self.conversation_context["current_topic"] = intent
+        self.conversation_context["state"] = ConversationState.FOLLOW_UP
+        
+        if "initial" in self.responses[intent]:
+            return random.choice(self.responses[intent]["initial"])
+        return random.choice(self.responses[intent])
+
+    def _get_follow_up_response(self, intent: str) -> str:
+        """Get follow-up response with deeper exploration"""
+        if "follow_up" in self.responses[intent]:
+            for follow_up_type, questions in self.responses[intent]["follow_up"].items():
+                if follow_up_type not in self.conversation_context["user_info"]:
+                    return random.choice(questions)
+                    
+        if "validation" in self.responses[intent] and random.random() > 0.6:
+            return random.choice(self.responses[intent]["validation"])
+            
+        return random.choice(self.responses[intent])
+
+    def _personalize_response(self, response: str) -> str:
+        """Personalize response with user information"""
+        if self.conversation_context["user_info"]["name"]:
+            name = self.conversation_context["user_info"]["name"]
+            response = response.replace("you", f"you, {name}", 1)
+        return response
+
+    def _should_include_resources(self, intent: str) -> bool:
+        """Determine if resources should be included"""
+        if intent in ["suicide_risk", "self_harm"]:
+            return True
+        return random.random() < 0.6 and intent in self.resources
+
+    def _get_resources(self, intent: str) -> str:
+        """Get relevant resources with formatting"""
+        if intent not in self.resources:
+            return ""
+            
+        resources = random.sample(self.resources[intent], min(2, len(self.resources[intent])))
+        return "\n\nHelpful resources:\n• " + "\n• ".join(resources)
+
     def _analyze_sentiment(self, message: str) -> float:
+        """Analyze message sentiment with enhanced word lists"""
+        positive = ["hope", "better", "improving", "progress", "happy", "relief"]
+        negative = ["hopeless", "worthless", "terrible", "awful", "hate", "despair"]
+        
         words = re.findall(r'\w+', message.lower())
-        pos = sum(1 for w in words if w in self.sentiment_words["positive"])
-        neg = sum(1 for w in words if w in self.sentiment_words["negative"])
+        pos = sum(1 for w in words if w in positive)
+        neg = sum(1 for w in words if w in negative)
         total = pos + neg
+        
         return (pos - neg) / total if total else 0
 
-    def _detect_intent(self, message: str) -> str:
-        lower_msg = message.lower()
-        for intent, keywords in self.intent_keywords.items():
-            if any(word in lower_msg for word in keywords):
-                return intent
-        return "default"
+    def _extract_user_info(self, message: str):
+        """Extract and store user information from messages"""
+        if not self.conversation_context["user_info"]["name"]:
+            name_match = re.search(r"(?:my name is|i'm called|i am|i'm)\s+([A-Za-z]+)", message, re.I)
+            if name_match:
+                self.conversation_context["user_info"]["name"] = name_match.group(1)
+                
+        if re.search(r"(?:see|seeing|talk to)\s+(?:a|my)\s+(?:therapist|counselor)", message, re.I):
+            self.conversation_context["user_info"]["therapy_history"] = True
+            
+        if re.search(r"(?:taking|on)\s+(?:medication|prozac|zoloft|lexapro)", message, re.I):
+            self.conversation_context["user_info"]["medication"] = True
+
+    def get_conversation_summary(self) -> Dict:
+        """Get summary of conversation with insights"""
+        return {
+            "duration_minutes": (datetime.now() - self.conversation_context["start_time"]).seconds // 60,
+            "main_topics": self._get_main_topics(),
+            "sentiment_trend": self._get_sentiment_trend(),
+            "user_info": self.conversation_context["user_info"],
+            "crisis_flagged": any(m for m in self.conversation_context["message_history"] 
+                                 if self._assess_crisis_risk(m))
+        }
+
+    def _get_main_topics(self) -> List[str]:
+        """Extract main topics from conversation history"""
+        if self.conversation_context["current_topic"]:
+            return [self.conversation_context["current_topic"]]
+        return []
+
+    def _get_sentiment_trend(self) -> str:
+        """Get sentiment trend with enhanced analysis"""
+        if not self.conversation_context["sentiment_trend"]:
+            return "neutral"
+            
+        avg = sum(self.conversation_context["sentiment_trend"]) / len(self.conversation_context["sentiment_trend"])
+        if avg > 0.3:
+            return "positive"
+        elif avg < -0.3:
+            return "negative"
+        return "mixed"
 
     def generate(self, message: str, intent: Optional[str] = None) -> str:
-        self.conversation_history.append(message)
-        if intent is None:
-            intent = self._detect_intent(message)
-        self.last_intent = intent
-
-        urgency = self._detect_urgency(message)
-        if urgency == "immediate":
-            return ("I'm deeply concerned about your safety. Please call a crisis hotline now. "
-                    "You're not alone - help is available immediately.")
-        elif urgency == "concerning":
-            return ("What you're describing sounds serious. Have you considered speaking with "
-                    "a mental health professional about these feelings?")
-
-        # Extract name if not already known
-        if not self.user_name:
-            name_match = re.search(r"(my name is|i'm called|i am|i'm)\s+([A-Za-z]+)", message, re.I)
-            if name_match:
-                self.user_name = name_match.group(2)
-
-        if intent in self.responses and intent != "default":
-            base_response = self._get_rule_based_response(intent)
-            response = self._personalize_response(base_response, message)
-        else:
-            response = self._call_deepseek_api(message)
-
-        return ' '.join(response.split()[:100])
-
-    def get_conversation_summary(self) -> str:
-        if not self.conversation_history:
-            return "No conversation history yet"
-        last_msgs = "\n".join(self.conversation_history[-3:])
-        return f"Recent conversation (last intent: {self.last_intent}):\n{last_msgs}"
-
+        """Alias for generate_response for backward compatibility"""
+        return self.generate_response(message, intent)

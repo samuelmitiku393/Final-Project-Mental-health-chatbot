@@ -38,7 +38,10 @@ class MentalHealthChatbot:
         self.model = None
         self.max_seq_length = 50
 
-        self.models_dir = Path(__file__).parents[1] / "models"
+        # Set up paths - assuming this script is in backend/app/scripts
+        self.base_dir = Path(__file__).parents[2]  # Goes up to backend directory
+        self.config_dir = self.base_dir / "config"
+        self.models_dir = self.base_dir / "models"
         self.models_dir.mkdir(exist_ok=True)
 
     def _load_config(self, config_path: Optional[str] = None) -> Dict:
@@ -62,26 +65,23 @@ class MentalHealthChatbot:
             }
         }
 
-        if config_path is None:
-            config_path = Path(__file__).parents[1] / "config"
-        else:
-            config_path = Path(config_path)
+        # Use provided config path or default to backend/config
+        config_dir = Path(config_path) if config_path else self.config_dir
+        
+        try:
+            # Load intent mapping
+            intent_path = config_dir / "intent_mapping.json"
+            if intent_path.exists():
+                with open(intent_path) as f:
+                    default_config["intent_mapping"] = json.load(f)
 
-        if config_path.exists():
-            try:
-                intent_path = config_path / "intent_mapping.json"
-                if intent_path.exists():
-                    with open(intent_path) as f:
-                        default_config["intent_mapping"] = json.load(f)
-
-                params_path = config_path / "model_params.json"
-                if params_path.exists():
-                    with open(params_path) as f:
-                        default_config["model_params"].update(json.load(f))
-            except Exception as e:
-                logger.warning(f"Error loading config files: {e}. Using defaults.")
-        else:
-            logger.warning(f"Config directory not found at {config_path}. Using defaults.")
+            # Load model parameters
+            params_path = config_dir / "model_params.json"
+            if params_path.exists():
+                with open(params_path) as f:
+                    default_config["model_params"].update(json.load(f))
+        except Exception as e:
+            logger.warning(f"Error loading config files: {e}. Using defaults.")
 
         return default_config
 
@@ -123,6 +123,8 @@ class MentalHealthChatbot:
 
     def train(self, data_path: str, save_dir: Optional[str] = None):
         try:
+            logger.info("[INFO] Training started...")
+            
             df = self._load_data(data_path)
             X_train, X_test, y_train, y_test = train_test_split(
                 df['processed_text'],
@@ -131,6 +133,7 @@ class MentalHealthChatbot:
                 random_state=42,
                 stratify=df['intent']
             )
+            
             self.tokenizer = Tokenizer(num_words=self.config["model_params"]["vocab_size"], oov_token='<OOV>')
             self.tokenizer.fit_on_texts(X_train)
             X_train_seq = pad_sequences(self.tokenizer.texts_to_sequences(X_train), maxlen=self.max_seq_length)
@@ -151,13 +154,21 @@ class MentalHealthChatbot:
             history = self.model.fit(
                 X_train_seq,
                 {'intent_output': y_train.values, 'context_layer': np.zeros((len(X_train), self.config["model_params"]["context_dim"]))},
-                validation_data=(X_test_seq, {'intent_output': y_test.values, 'context_layer': np.zeros((len(X_test), self.config["model_params"]["context_dim"]))}),
+                validation_data=(
+                    X_test_seq,
+                    {
+                        'intent_output': y_test.values,
+                        'context_layer': np.zeros((len(X_test), self.config["model_params"]["context_dim"]))
+                    }
+                ),
                 epochs=self.config["model_params"]["epochs"],
                 batch_size=self.config["model_params"]["batch_size"],
                 callbacks=callbacks,
                 verbose=1
             )
+            
             self._save_model()
+            logger.info("[INFO] Training completed. Saving model...")
             return history
         except Exception as e:
             logger.error(f"Training failed: {e}")
@@ -197,13 +208,17 @@ class MentalHealthChatbot:
 
     def _save_model(self):
         try:
-            self.model.save(self.models_dir / 'chatbot_model.keras_model')
+            # Save the model in Keras format
+            self.model.save(self.models_dir / 'chatbot_model.keras')
+            
+            # Save tokenizer
             with open(self.models_dir / 'tokenizer.json', 'w') as f:
                 f.write(self.tokenizer.to_json())
+                
+            # Save config
             with open(self.models_dir / 'config.json', 'w') as f:
                 json.dump(self.config, f)
+                
             logger.info("Model components saved successfully.")
         except Exception as e:
             logger.error(f"Error saving model components: {e}")
-print("[INFO] Training started...")
-print("[INFO] Training completed. Saving model...")
