@@ -8,9 +8,94 @@ import React, {
 import styled, { keyframes } from "styled-components";
 import axios from "axios";
 
+// speak a string -------------------------------------------------------------
+export function speak(text) {
+  if (!window.speechSynthesis) {
+    console.warn("Speech synthesis not supported");
+    return;
+  }
+  window.speechSynthesis.cancel(); // stop anything playing
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
+  speechSynthesis.speak(utterance);
+}
+
+// hook for speech-to-text ----------------------------------------------------
+export function useSpeechToText() {
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      console.warn("Speech Recognition not supported in this browser");
+      return;
+    }
+
+    recognitionRef.current = new SR();
+    recognitionRef.current.lang = "en-US";
+    recognitionRef.current.interimResults = true;
+    recognitionRef.current.continuous = false;
+
+    recognitionRef.current.onresult = (e) => {
+      const t = Array.from(e.results)
+        .map((r) => r[0].transcript)
+        .join("");
+      setTranscript(t);
+    };
+
+    recognitionRef.current.onend = () => {
+      if (listening) {
+        recognitionRef.current?.start();
+      } else {
+        setListening(false);
+      }
+    };
+
+    recognitionRef.current.onerror = (e) => {
+      console.error("Speech recognition error", e.error);
+      setListening(false);
+    };
+
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, [listening]);
+
+  const start = useCallback(() => {
+    if (recognitionRef.current && !listening) {
+      setTranscript("");
+      try {
+        recognitionRef.current.start();
+        setListening(true);
+      } catch (err) {
+        console.error("Error starting speech recognition:", err);
+      }
+    }
+  }, [listening]);
+
+  const stop = useCallback(() => {
+    if (recognitionRef.current && listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+    }
+  }, [listening]);
+
+  return { transcript, listening, start, stop };
+}
+
 const blink = keyframes`
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+`;
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 `;
 
 const ChatContainer = styled.div`
@@ -77,6 +162,7 @@ const UserMessage = styled.div`
   word-wrap: break-word;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
+  animation: ${fadeIn} 0.3s ease-out;
 
   &::after {
     content: "";
@@ -105,6 +191,7 @@ const BotMessage = styled.div`
   word-wrap: break-word;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
+  animation: ${fadeIn} 0.3s ease-out;
 
   &::before {
     content: "";
@@ -141,7 +228,7 @@ const InputContainer = styled.div`
     font-size: 16px;
     background-color: #e2dad6;
     color: #2f3645;
-    transition: box-shadow 0.2s;
+    transition: all 0.2s;
 
     &:focus {
       box-shadow: 0 0 0 2px #758694;
@@ -160,15 +247,24 @@ const InputContainer = styled.div`
     border-radius: 30px;
     font-size: 16px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 
     &:hover {
       background-color: #5e6b79;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
     }
 
     &:disabled {
       background-color: #a7a7a7;
       cursor: not-allowed;
+      transform: none;
     }
   }
 `;
@@ -222,6 +318,70 @@ const Disclaimer = styled.div`
   flex-shrink: 0;
 `;
 
+const MicButton = styled.button`
+  background-color: ${(props) => (props.listening ? "#ff4d4d" : "#758694")};
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: ${(props) => (props.listening ? "#ff3333" : "#5e6b79")};
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background-color: #a7a7a7;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const MessageActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+`;
+
+const ActionButton = styled.button`
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e2dad6;
+  border: none;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
+
 function Chatbox() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -230,6 +390,9 @@ function Chatbox() {
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const messageEndRef = useRef(null);
+
+  // Speech to text hook
+  const { transcript, listening, start, stop } = useSpeechToText();
 
   const defaultPrompts = useMemo(
     () => [
@@ -243,50 +406,16 @@ function Chatbox() {
       "Tell me something positive.",
       "How do I deal with negative thoughts?",
       "Can you explain depression?",
-      "What are the signs of burnout?",
-      "Give me a self-care tip.",
-      "How do I stop overthinking?",
-      "What are grounding techniques?",
-      "I need motivation today.",
-      "How do I set healthy boundaries?",
-      "How can I boost my mood?",
-      "What are symptoms of anxiety?",
-      "How can I manage social anxiety?",
-      "Help me feel more confident.",
-      "What is emotional intelligence?",
-      "How can I feel less lonely?",
-      "Suggest a quick relaxation exercise.",
-      "What are signs of a mental breakdown?",
-      "Can you help me with self-esteem?",
-      "How do I manage anger in a healthy way?",
-      "Tell me a calming affirmation.",
-      "What are common mental health myths?",
-      "How do I support a friend with depression?",
-      "What does a healthy routine look like?",
-      "Give me a 5-minute meditation guide.",
-      "How do I identify toxic relationships?",
-      "What are some healthy coping mechanisms?",
-      "How do I get through a bad day?",
-      "Can journaling improve my mental health?",
-      "How does diet affect my mood?",
-      "What is cognitive behavioral therapy (CBT)?",
-      "I feel stuck in life. What now?",
-      "Tell me something encouraging.",
-      "Why do I feel tired all the time?",
-      "How do I develop resilience?",
-      "Is it okay to feel sad without a reason?",
-      "What does emotional burnout feel like?",
-      "How do I balance work and life?",
-      "Can exercise help mental health?",
-      "What is imposter syndrome?",
-      "How do I handle rejection?",
-      "Can I talk to you when I feel lonely?",
-      "Give me a small goal for today.",
-      "What are the stages of grief?",
-      "How do I know if I need professional help?",
     ],
     []
   );
+
+  // Update input when speech transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   const generateQuickReplies = useCallback(() => {
     const shuffled = [...defaultPrompts].sort(() => 0.5 - Math.random());
@@ -296,13 +425,18 @@ function Chatbox() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setConnectionStatus("connected");
-      setMessages([
-        { text: "Hello! How can I assist you today?", sender: "bot" },
-      ]);
+      const welcomeMessage = "Hello! How can I assist you today?";
+      setMessages([{ text: welcomeMessage, sender: "bot" }]);
       generateQuickReplies();
     }, 1000);
     return () => clearTimeout(timer);
   }, [generateQuickReplies]);
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // You could add a visual feedback here
+    });
+  };
 
   const sendMessage = async (msg) => {
     const userMessage = msg || input.trim();
@@ -312,6 +446,7 @@ function Chatbox() {
     setInput("");
     setShowQuickReplies(false);
     setIsBotResponding(true);
+    stop(); // Stop speech recognition if active
 
     try {
       const response = await axios.post("http://localhost:8000/api/chat", {
@@ -321,12 +456,22 @@ function Chatbox() {
         response.data.message || "Sorry, I didn't understand that.";
       setMessages((prev) => [...prev, { text: botReply, sender: "bot" }]);
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { text: "Server error. Please try again later.", sender: "bot" },
-      ]);
+      const errorMessage = "Server error. Please try again later.";
+      setMessages((prev) => [...prev, { text: errorMessage, sender: "bot" }]);
     } finally {
       setIsBotResponding(false);
+      generateQuickReplies();
+    }
+  };
+
+  const toggleSpeechRecognition = () => {
+    if (listening) {
+      stop();
+      if (transcript) {
+        sendMessage(transcript);
+      }
+    } else {
+      start();
     }
   };
 
@@ -347,7 +492,50 @@ function Chatbox() {
                 msg.sender === "user" ? (
                   <UserMessage key={i}>{msg.text}</UserMessage>
                 ) : (
-                  <BotMessage key={i}>{msg.text}</BotMessage>
+                  <div key={i}>
+                    <BotMessage>{msg.text}</BotMessage>
+                    <MessageActions>
+                      <ActionButton onClick={() => speak(msg.text)}>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                          <line x1="12" y1="19" x2="12" y2="23"></line>
+                          <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        Speak
+                      </ActionButton>
+                      <ActionButton onClick={() => copyToClipboard(msg.text)}>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect
+                            x="9"
+                            y="9"
+                            width="13"
+                            height="13"
+                            rx="2"
+                            ry="2"
+                          ></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                      </ActionButton>
+                    </MessageActions>
+                  </div>
                 )
               )}
               <div ref={messageEndRef} />
@@ -372,14 +560,66 @@ function Chatbox() {
             <InputContainer>
               <input
                 type="text"
-                placeholder="Type your message..."
+                placeholder={
+                  listening ? "Listening..." : "Type your message..."
+                }
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) =>
                   e.key === "Enter" && !isBotResponding && sendMessage()
                 }
-                disabled={connectionStatus !== "connected" || isBotResponding}
+                disabled={
+                  connectionStatus !== "connected" ||
+                  isBotResponding ||
+                  listening
+                }
               />
+              <MicButton
+                onClick={toggleSpeechRecognition}
+                disabled={isBotResponding || connectionStatus !== "connected"}
+                listening={listening}
+                aria-label={listening ? "Stop listening" : "Start voice input"}
+              >
+                {listening ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
+                      fill="white"
+                    />
+                    <path
+                      d="M5 11C5.55228 11 6 11.4477 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 11.4477 18.4477 11 19 11C19.5523 11 20 11.4477 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 11.4477 4.44772 11 5 11Z"
+                      fill="white"
+                    />
+                    <path
+                      d="M12 19C12.5523 19 13 19.4477 13 20V23C13 23.5523 12.5523 24 12 24C11.4477 24 11 23.5523 11 23V20C11 19.4477 11.4477 19 12 19Z"
+                      fill="white"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
+                      fill="white"
+                    />
+                    <path
+                      d="M5 11C5.55228 11 6 11.4477 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 11.4477 18.4477 11 19 11C19.5523 11 20 11.4477 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 11.4477 4.44772 11 5 11Z"
+                      fill="white"
+                    />
+                  </svg>
+                )}
+              </MicButton>
               <button
                 onClick={() => sendMessage()}
                 disabled={
@@ -388,7 +628,21 @@ function Chatbox() {
                   isBotResponding
                 }
               >
-                {isBotResponding ? "..." : "Send"}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                Send
               </button>
             </InputContainer>
             <Disclaimer>
