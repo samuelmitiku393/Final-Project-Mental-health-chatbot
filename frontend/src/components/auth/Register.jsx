@@ -153,16 +153,29 @@ function Register() {
     }));
   };
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    // Validate email format
+    if (!validateEmail(formData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    // Check if passwords match
     if (formData.password !== formData.confirm_password) {
       setError("Passwords do not match");
       return;
     }
 
+    // Check password length
     if (formData.password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
@@ -177,7 +190,7 @@ function Register() {
         password: formData.password,
         confirm_password: formData.confirm_password,
         role: "client",
-        status: "active",
+        status: "Active",
       });
 
       if (response.status === 201) {
@@ -185,18 +198,77 @@ function Register() {
         setTimeout(() => navigate("/login"), 2000);
       }
     } catch (err) {
+      console.error("Registration error:", err);
+
       if (err.response) {
-        if (err.response.data && err.response.data.detail) {
-          setError(err.response.data.detail);
-        } else {
-          setError("Registration failed. Please try again.");
+        // Handle API errors with response data
+        const { status, data } = err.response;
+
+        // Handle duplicate email cases
+        if (status === 400 || status === 409) {
+          if (data?.detail) {
+            if (typeof data.detail === "string") {
+              const detailLower = data.detail.toLowerCase();
+              if (
+                detailLower.includes("email") &&
+                (detailLower.includes("already exists") ||
+                  detailLower.includes("already registered"))
+              ) {
+                setError(
+                  "This email is already registered. Please use a different email or login."
+                );
+                return;
+              }
+              setError(data.detail);
+              return;
+            } else if (typeof data.detail === "object") {
+              // Handle case where detail is an object (like Django REST framework validation errors)
+              const firstError = Object.values(data.detail)[0];
+              if (Array.isArray(firstError)) {
+                setError(firstError[0]);
+                return;
+              }
+              setError(firstError);
+              return;
+            }
+          }
+        }
+
+        // Handle validation errors
+        if (status === 422 && data?.detail) {
+          if (Array.isArray(data.detail)) {
+            setError(data.detail.map((err) => err.msg).join(", "));
+            return;
+          }
+          setError(data.detail);
+          return;
+        }
+
+        // Handle other 4xx errors
+        if (status >= 400 && status < 500) {
+          setError(
+            data?.message ||
+              data?.detail ||
+              "Invalid request. Please check your input and try again."
+          );
+          return;
+        }
+
+        // Handle 5xx server errors
+        if (status >= 500) {
+          setError("Server error. Please try again later.");
+          return;
         }
       } else if (err.request) {
-        setError("No response from server. Please try again.");
-      } else {
-        setError("An unexpected error occurred.");
+        // The request was made but no response was received
+        setError(
+          "No response from server. Please check your connection and try again."
+        );
+        return;
       }
-      console.error("Registration error:", err);
+
+      // Fallback error message
+      setError("An unexpected error occurred. Please try again later.");
     } finally {
       setLoading(false);
     }

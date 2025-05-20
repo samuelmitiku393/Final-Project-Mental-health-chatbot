@@ -7,86 +7,8 @@ import React, {
 } from "react";
 import styled, { keyframes } from "styled-components";
 import axios from "axios";
-
-// speak a string -------------------------------------------------------------
-export function speak(text) {
-  if (!window.speechSynthesis) {
-    console.warn("Speech synthesis not supported");
-    return;
-  }
-  window.speechSynthesis.cancel(); // stop anything playing
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  utterance.rate = 0.95;
-  utterance.pitch = 1;
-  speechSynthesis.speak(utterance);
-}
-
-// hook for speech-to-text ----------------------------------------------------
-export function useSpeechToText() {
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const recognitionRef = useRef(null);
-
-  useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      console.warn("Speech Recognition not supported in this browser");
-      return;
-    }
-
-    recognitionRef.current = new SR();
-    recognitionRef.current.lang = "en-US";
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.continuous = false;
-
-    recognitionRef.current.onresult = (e) => {
-      const t = Array.from(e.results)
-        .map((r) => r[0].transcript)
-        .join("");
-      setTranscript(t);
-    };
-
-    recognitionRef.current.onend = () => {
-      if (listening) {
-        recognitionRef.current?.start();
-      } else {
-        setListening(false);
-      }
-    };
-
-    recognitionRef.current.onerror = (e) => {
-      console.error("Speech recognition error", e.error);
-      setListening(false);
-    };
-
-    return () => {
-      recognitionRef.current?.stop();
-    };
-  }, [listening]);
-
-  const start = useCallback(() => {
-    if (recognitionRef.current && !listening) {
-      setTranscript("");
-      try {
-        recognitionRef.current.start();
-        setListening(true);
-      } catch (err) {
-        console.error("Error starting speech recognition:", err);
-      }
-    }
-  }, [listening]);
-
-  const stop = useCallback(() => {
-    if (recognitionRef.current && listening) {
-      recognitionRef.current.stop();
-      setListening(false);
-    }
-  }, [listening]);
-
-  return { transcript, listening, start, stop };
-}
+import { useSpeechToText } from "../../utils/speechToText";
+import { speak } from "../../utils/textToSpeech";
 
 const blink = keyframes`
   0%, 100% { opacity: 1; }
@@ -150,7 +72,6 @@ const MessageContainer = styled.div`
   min-height: 100px;
 `;
 
-// User message style (right side)
 const UserMessage = styled.div`
   max-width: 80%;
   padding: 12px 16px;
@@ -179,7 +100,6 @@ const UserMessage = styled.div`
   }
 `;
 
-// Bot message style (left side)
 const BotMessage = styled.div`
   max-width: 80%;
   padding: 12px 16px;
@@ -345,8 +265,13 @@ const MicButton = styled.button`
     cursor: not-allowed;
     transform: none;
   }
-`;
 
+  svg {
+    width: 20px;
+    height: 20px;
+    fill: white;
+  }
+`;
 const MessageActions = styled.div`
   display: flex;
   gap: 8px;
@@ -581,43 +506,19 @@ function Chatbox() {
                 aria-label={listening ? "Stop listening" : "Start voice input"}
               >
                 {listening ? (
-                  <svg
+                  <img
+                    src="/assets/mic.svg"
+                    alt="Stop listening"
                     width="20"
                     height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
-                      fill="white"
-                    />
-                    <path
-                      d="M5 11C5.55228 11 6 11.4477 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 11.4477 18.4477 11 19 11C19.5523 11 20 11.4477 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 11.4477 4.44772 11 5 11Z"
-                      fill="white"
-                    />
-                    <path
-                      d="M12 19C12.5523 19 13 19.4477 13 20V23C13 23.5523 12.5523 24 12 24C11.4477 24 11 23.5523 11 23V20C11 19.4477 11.4477 19 12 19Z"
-                      fill="white"
-                    />
-                  </svg>
+                  />
                 ) : (
-                  <svg
+                  <img
+                    src="/assets/mic.svg"
+                    alt="Start voice input"
                     width="20"
                     height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M12 1C10.3431 1 9 2.34315 9 4V12C9 13.6569 10.3431 15 12 15C13.6569 15 15 13.6569 15 12V4C15 2.34315 13.6569 1 12 1Z"
-                      fill="white"
-                    />
-                    <path
-                      d="M5 11C5.55228 11 6 11.4477 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12C18 11.4477 18.4477 11 19 11C19.5523 11 20 11.4477 20 12C20 16.4183 16.4183 20 12 20C7.58172 20 4 16.4183 4 12C4 11.4477 4.44772 11 5 11Z"
-                      fill="white"
-                    />
-                  </svg>
+                  />
                 )}
               </MicButton>
               <button
