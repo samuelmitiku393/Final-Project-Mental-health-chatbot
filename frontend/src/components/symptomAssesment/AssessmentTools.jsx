@@ -235,54 +235,60 @@ const Disclaimer = styled.div`
 `;
 
 // Data
+
 const ASSESSMENT_DATA = {
   phq9: {
     title: "PHQ-9 Depression Assessment",
-    description: "The PHQ-9 is a validated diagnostic tool for depression...",
+    description:
+      "The PHQ-9 is a validated diagnostic tool for depression. Over the last 2 weeks, how often have you been bothered by any of the following problems?",
     questions: [
       "Little interest or pleasure in doing things",
       "Feeling down, depressed, or hopeless",
-      "Trouble falling or staying asleep...",
+      "Trouble falling or staying asleep, or sleeping too much",
       "Feeling tired or having little energy",
       "Poor appetite or overeating",
-      "Feeling bad about yourself...",
-      "Trouble concentrating...",
-      "Moving or speaking so slowly...",
-      "Thoughts that you would be better off dead...",
+      "Feeling bad about yourself - or that you are a failure or have let yourself or your family down",
+      "Trouble concentrating on things, such as reading the newspaper or watching television",
+      "Moving or speaking so slowly that other people could have noticed? Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual",
+      "Thoughts that you would be better off dead or of hurting yourself in some way",
     ],
     scoring:
-      "Scores range from 0-27. Cutpoints: 5 (mild), 10 (moderate), 15 (mod severe), 20 (severe).",
+      "Scores range from 0-27. Cutpoints: 5 (mild), 10 (moderate), 15 (moderately severe), 20 (severe).",
   },
   gad7: {
     title: "GAD-7 Anxiety Assessment",
-    description: "The GAD-7 is a validated diagnostic tool for anxiety...",
+    description:
+      "The GAD-7 is a validated diagnostic tool for anxiety. Over the last 2 weeks, how often have you been bothered by the following problems?",
     questions: [
       "Feeling nervous, anxious, or on edge",
       "Not being able to stop or control worrying",
       "Worrying too much about different things",
       "Trouble relaxing",
-      "Being so restless that it's hard to sit still",
+      "Being so restless that it is hard to sit still",
       "Becoming easily annoyed or irritable",
       "Feeling afraid as if something awful might happen",
     ],
-    scoring: "Scores range from 0–21. Cutpoints: 5, 10, and 15.",
+    scoring:
+      "Scores range from 0-21. Cutpoints: 5 (mild), 10 (moderate), 15 (severe).",
   },
   pss10: {
     title: "Perceived Stress Scale (PSS-10)",
-    description: "The PSS-10 measures perception of stress in the past month.",
+    description:
+      "The PSS-10 measures the degree to which situations in your life are appraised as stressful. In the last month, how often have you:",
     questions: [
-      "Been upset because of something unexpected?",
-      "Felt unable to control the important things?",
+      "Been upset because of something that happened unexpectedly?",
+      "Felt that you were unable to control the important things in your life?",
       "Felt nervous and 'stressed'?",
-      "Felt confident about handling problems? (reverse scored)",
-      "Felt things were going your way? (reverse scored)",
-      "Could not cope with all the things?",
-      "Able to control irritations? (reverse scored)",
-      "Felt on top of things? (reverse scored)",
-      "Been angered by things out of control?",
-      "Felt difficulties piling up?",
+      "Felt confident about your ability to handle your personal problems? (reverse scored)",
+      "Felt that things were going your way? (reverse scored)",
+      "Found that you could not cope with all the things that you had to do?",
+      "Been able to control irritations in your life? (reverse scored)",
+      "Felt that you were on top of things? (reverse scored)",
+      "Been angered because of things that happened that were outside of your control?",
+      "Felt difficulties were piling up so high that you could not overcome them?",
     ],
-    scoring: "0–40. 13 or less = low stress; 14–26 = moderate; 27+ = high.",
+    scoring:
+      "Scores range from 0-40. 0-13 = low stress; 14-26 = moderate stress; 27-40 = high perceived stress.",
   },
 };
 

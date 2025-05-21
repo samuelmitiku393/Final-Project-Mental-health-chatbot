@@ -13,6 +13,7 @@ import TherapistProfile from "./components/therapist/TherapistProfile";
 import PrivateRoute from "./shared/PrivateRoute";
 import HomePage from "./components/home/HomePage";
 import { AuthProvider } from "./components/auth/AuthContext";
+import CrisisHelpLine from "./components/crisisHelpLine/CrisisHelpLine";
 
 // Lazy-loaded components
 const Chatbox = lazy(() => import("./components/chat/Chatbox"));
@@ -115,6 +116,18 @@ function App() {
                   }
                 >
                   <TherapistDirectory />
+                </Suspense>
+              }
+            />
+            <Route
+              path="crisis"
+              element={
+                <Suspense
+                  fallback={
+                    <div style={{ padding: 20, color: "#fff" }}>Loading...</div>
+                  }
+                >
+                  <CrisisHelpLine />
                 </Suspense>
               }
             />

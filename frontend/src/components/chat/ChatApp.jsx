@@ -3,6 +3,7 @@ import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import styled, { keyframes, css } from "styled-components";
 import { useAuth } from "../auth/AuthContext";
 import { debounce } from "lodash";
+import CrisisHelpLine from "../crisisHelpLine/CrisisHelpLine";
 
 // Modern animations
 const fadeIn = keyframes`
@@ -13,6 +14,11 @@ const fadeIn = keyframes`
 const slideIn = keyframes`
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
+`;
+
+const slideInRight = keyframes`
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 `;
 
 const pulse = keyframes`
@@ -37,9 +43,10 @@ const AppWrapper = styled.div`
   ${gradientBackground}
   color: #e0e0e0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
 `;
 
 const Sidebar = styled.div`
@@ -49,21 +56,16 @@ const Sidebar = styled.div`
   ${gradientBackground}
   padding: 24px 16px;
   width: 96px;
-  height: 100vh;
+  height: 100%;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 100;
   animation: ${slideIn} 0.3s ease-out forwards;
+  position: relative;
+  overflow-y: auto;
 
   @media (max-width: 768px) {
-    width: 280px;
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    transform: translateX(-100%);
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
-    ${({ $isOpen }) => $isOpen && `transform: translateX(0);`}
+    display: none;
   }
 `;
 
@@ -112,15 +114,6 @@ const NavButton = styled.button`
     transform-origin: top;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
-  @media (max-width: 768px) {
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: 0 20px;
-    height: 56px;
-    font-size: 20px;
-    border-radius: 12px;
-  }
 `;
 
 const ButtonLabel = styled.span`
@@ -128,12 +121,6 @@ const ButtonLabel = styled.span`
   font-weight: 500;
   margin-top: 4px;
   transition: all 0.2s ease;
-  @media (max-width: 768px) {
-    font-size: 14px;
-    margin-top: 0;
-    margin-left: 16px;
-    font-weight: 600;
-  }
 `;
 
 const LogoutButton = styled.button`
@@ -167,13 +154,6 @@ const LogoutButton = styled.button`
   &:focus-visible {
     outline: 2px solid #ff6b6b;
     outline-offset: 2px;
-  }
-
-  @media (max-width: 768px) {
-    justify-content: flex-start;
-    padding: 0 20px;
-    margin-top: 24px;
-    height: 48px;
   }
 `;
 
@@ -215,20 +195,25 @@ const ToggleButton = styled.button`
 `;
 
 const TopBar = styled.div`
-  display: none;
   ${gradientBackground}
   padding: 12px 24px;
   height: 72px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: ${({ $isMobile }) => ($isMobile ? "0" : "96px")};
+  right: 0;
   z-index: 99;
   animation: ${fadeIn} 0.3s ease-out;
+  display: flex;
+  justify-content: ${({ $isMobile }) =>
+    $isMobile ? "space-between" : "flex-end"};
+  align-items: center;
+  width: ${({ $isMobile }) => ($isMobile ? "100%" : "calc(100% - 96px)")};
 
   @media (max-width: 768px) {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    left: 0;
+    width: 100%;
   }
 `;
 
@@ -239,19 +224,31 @@ const MainContent = styled.div`
   height: 100vh;
   overflow: hidden;
   ${gradientBackground}
+  margin-left: 96px;
+  width: calc(100% - 96px);
+  position: relative;
+
   @media (max-width: 768px) {
+    margin-left: 0;
+    width: 100%;
+    margin-top: 72px;
     height: calc(100vh - 72px);
   }
 `;
 
 const ContentContainer = styled.div`
   flex: 1;
-  overflow: auto;
   padding: 32px;
   animation: ${fadeIn} 0.3s ease-out;
+  margin-top: 72px;
+  overflow-y: auto;
+  height: calc(100% - 72px);
 
   @media (max-width: 768px) {
     padding: 24px 16px;
+    width: 100%;
+    margin-top: 0;
+    height: 100%;
   }
 `;
 
@@ -304,25 +301,85 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-const Overlay = styled.div`
+const DropdownMenu = styled.div`
+  position: fixed;
+  top: 84px;
+  right: 24px;
+  background: rgba(30, 37, 51, 0.98);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+  z-index: 100;
+  animation: ${slideInRight} 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: ${({ $isOpen }) => ($isOpen ? "block" : "none")};
+  min-width: 240px;
+  transform-origin: top right;
+  overflow: hidden;
+`;
+
+const DropdownItem = styled.button`
+  width: 100%;
+  padding: 14px 16px;
+  background: ${({ $active }) =>
+    $active ? "rgba(74, 144, 226, 0.2)" : "transparent"};
+  border: none;
+  border-radius: 12px;
+  color: ${({ $active }) => ($active ? "#4a90e2" : "rgba(255, 255, 255, 0.8)")};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+
+  &:hover {
+    background: rgba(74, 144, 226, 0.15);
+    color: #4a90e2;
+    transform: translateX(4px);
+  }
+
+  &:active {
+    transform: translateX(4px) scale(0.98);
+  }
+`;
+
+const DropdownItemIcon = styled.span`
+  font-size: 22px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const DropdownDivider = styled.div`
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+`;
+
+const MenuBackdrop = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(4px);
   z-index: 99;
   display: ${({ $isOpen }) => ($isOpen ? "block" : "none")};
-  opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};
-  transition: opacity 0.3s ease;
+  animation: ${fadeIn} 0.2s ease-out;
 `;
 
 function ChatApp() {
   const [activeTab, setActiveTab] = useState("chat");
-  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -338,8 +395,8 @@ function ChatApp() {
       },
       {
         key: "mood",
-        label: "😊",
-        title: "Mood",
+        label: "📊",
+        title: "Mood Logger",
         ariaLabel: "Mood Tracking",
       },
       {
@@ -358,18 +415,22 @@ function ChatApp() {
     []
   );
 
+  // Set active tab based on current route
   useEffect(() => {
-    const path = location.pathname.replace("/app/", "");
+    const path = location.pathname.split("/").pop();
     if (path && tabs.some((tab) => tab.key === path)) {
       setActiveTab(path);
+    } else {
+      // Default to chat if no valid path
+      navigate("/app/chat", { replace: true });
     }
-  }, [location, tabs]);
+  }, [location.pathname, tabs, navigate]);
 
   const handleResize = useCallback(
     debounce(() => {
       setIsMobile(window.innerWidth <= 768);
       if (window.innerWidth > 768) {
-        setMobileMenuOpen(false);
+        setDropdownOpen(false);
       }
     }, 100),
     []
@@ -386,7 +447,7 @@ function ChatApp() {
   const handleTabChange = useCallback(
     (key) => {
       setActiveTab(key);
-      setMobileMenuOpen(false);
+      setDropdownOpen(false);
       navigate(`/app/${key}`);
     },
     [navigate]
@@ -405,60 +466,137 @@ function ChatApp() {
     }
   }, [logout, navigate]);
 
+  const toggleDropdown = useCallback(() => {
+    setDropdownOpen((prev) => !prev);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        isDropdownOpen &&
+        !event.target.closest("#dropdown-menu") &&
+        !event.target.closest("#menu-toggle")
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
   return (
     <AppWrapper>
+      {/* Top bar - visible on all screens */}
+      <TopBar $isMobile={isMobile}>
+        {isMobile && <AppTitle>Mental Health Chatbot</AppTitle>}
+        {isMobile ? (
+          <ToggleButton
+            id="menu-toggle"
+            onClick={toggleDropdown}
+            aria-label={isDropdownOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isDropdownOpen}
+            aria-haspopup="true"
+          >
+            {isDropdownOpen ? "✕" : "☰"}
+          </ToggleButton>
+        ) : (
+          <AppTitle>Mental Health Chatbot</AppTitle>
+        )}
+      </TopBar>
+
+      {/* Sidebar - only visible on desktop */}
+      {!isMobile && (
+        <Sidebar>
+          <nav aria-label="Main navigation">
+            {tabs.map(({ key, label, title, ariaLabel }) => (
+              <NavButton
+                key={key}
+                $active={activeTab === key}
+                onClick={() => handleTabChange(key)}
+                title={title}
+                aria-label={ariaLabel}
+                aria-current={activeTab === key ? "page" : undefined}
+              >
+                {label}
+                <ButtonLabel>{title}</ButtonLabel>
+              </NavButton>
+            ))}
+          </nav>
+
+          <LogoutButton
+            onClick={handleLogout}
+            aria-label="Logout"
+            disabled={isLoggingOut}
+          >
+            <LogoutIcon>⎋</LogoutIcon>
+          </LogoutButton>
+        </Sidebar>
+      )}
+
+      {/* Mobile dropdown menu with backdrop */}
       {isMobile && (
         <>
-          <TopBar>
-            <AppTitle>MindCare</AppTitle>
-            <ToggleButton
-              onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-              aria-expanded={isMobileMenuOpen}
-            >
-              {isMobileMenuOpen ? "✕" : "☰"}
-            </ToggleButton>
-          </TopBar>
-          <Overlay
-            $isOpen={isMobileMenuOpen}
-            onClick={() => setMobileMenuOpen(false)}
+          <MenuBackdrop
+            $isOpen={isDropdownOpen}
+            onClick={() => setDropdownOpen(false)}
           />
+          <DropdownMenu id="dropdown-menu" $isOpen={isDropdownOpen}>
+            {tabs.map(({ key, label, title, ariaLabel }) => (
+              <DropdownItem
+                key={key}
+                $active={activeTab === key}
+                onClick={() => handleTabChange(key)}
+                aria-label={ariaLabel}
+                aria-current={activeTab === key ? "page" : undefined}
+              >
+                <DropdownItemIcon>{label}</DropdownItemIcon>
+                {title}
+                {activeTab === key && (
+                  <span style={{ marginLeft: "auto" }}>✓</span>
+                )}
+              </DropdownItem>
+            ))}
+            <DropdownDivider />
+            <DropdownItem
+              onClick={handleLogout}
+              aria-label="Logout"
+              disabled={isLoggingOut}
+              style={{ color: "#ff6b6b" }}
+            >
+              <DropdownItemIcon>⎋</DropdownItemIcon>
+              Logout
+              {isLoggingOut && (
+                <span style={{ marginLeft: "auto" }}>
+                  <LoadingSpinner
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      borderWidth: "2px",
+                      margin: "0",
+                    }}
+                  />
+                </span>
+              )}
+            </DropdownItem>
+          </DropdownMenu>
         </>
       )}
 
-      <Sidebar $isOpen={isMobileMenuOpen}>
-        <nav aria-label="Main navigation">
-          {tabs.map(({ key, label, title, ariaLabel }) => (
-            <NavButton
-              key={key}
-              $active={activeTab === key}
-              onClick={() => handleTabChange(key)}
-              title={title}
-              aria-label={ariaLabel}
-              aria-current={activeTab === key ? "page" : undefined}
-            >
-              {label}
-              <ButtonLabel>{title}</ButtonLabel>
-            </NavButton>
-          ))}
-        </nav>
-
-        <LogoutButton
-          onClick={handleLogout}
-          aria-label="Logout"
-          disabled={isLoggingOut}
-        >
-          <LogoutIcon>⎋</LogoutIcon>
-          {isMobile && "Logout"}
-        </LogoutButton>
-      </Sidebar>
-
+      {/* Main content area */}
       <MainContent>
         <ContentContainer>
           <Outlet />
         </ContentContainer>
       </MainContent>
 
+      {/* Crisis Help Line - always available */}
+      <CrisisHelpLine />
+
+      {/* Loading overlay */}
       {isLoggingOut && (
         <LoadingOverlay role="status" aria-live="polite">
           <LoadingSpinner />

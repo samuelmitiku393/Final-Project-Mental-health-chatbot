@@ -116,6 +116,11 @@ const Login = () => {
         throw new Error("Invalid server response format");
       }
 
+      // Check if user has admin role
+      if (response.data.user.role !== "admin") {
+        throw new Error("Access restricted to administrators only");
+      }
+
       await login(response.data.access_token, {
         email: response.data.user.email,
         role: response.data.user.role,
@@ -132,6 +137,9 @@ const Login = () => {
             break;
           case 401:
             errorMessage = "Invalid email or password";
+            break;
+          case 403:
+            errorMessage = "Access restricted to administrators only";
             break;
           case 500:
             errorMessage = "Server error. Please try again later";
@@ -173,7 +181,7 @@ const Login = () => {
         <StyledPaper elevation={3}>
           <LockOutlinedIcon sx={{ fontSize: 40, mb: 1 }} />
           <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
-            Sign In
+            Admin Sign In
           </Typography>
 
           {error && (

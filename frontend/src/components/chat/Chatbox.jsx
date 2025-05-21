@@ -272,6 +272,7 @@ const MicButton = styled.button`
     fill: white;
   }
 `;
+
 const MessageActions = styled.div`
   display: flex;
   gap: 8px;
@@ -304,7 +305,23 @@ const ActionButton = styled.button`
   svg {
     width: 14px;
     height: 14px;
+    fill: currentColor;
   }
+`;
+
+const ToastNotification = styled.div`
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: ${fadeIn} 0.3s ease-in,
+    ${fadeIn} 0.3s ease-out 1.7s reverse forwards;
 `;
 
 function Chatbox() {
@@ -314,6 +331,8 @@ function Chatbox() {
   const [isBotResponding, setIsBotResponding] = useState(false);
   const [quickReplies, setQuickReplies] = useState([]);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
   const messageEndRef = useRef(null);
 
   // Speech to text hook
@@ -321,21 +340,23 @@ function Chatbox() {
 
   const defaultPrompts = useMemo(
     () => [
-      "I'm feeling anxious. What should I do?",
-      "How can I calm down during a panic attack?",
-      "What are some ways to manage stress?",
-      "Can you help me sleep better?",
-      "What is mindfulness?",
-      "How do I practice deep breathing?",
-      "I feel overwhelmed. Can you help?",
-      "Tell me something positive.",
-      "How do I deal with negative thoughts?",
-      "Can you explain depression?",
+      "I'm feeling anxious right now",
+      "I'm having a panic attack",
+      "I feel really depressed today",
+      "I'm overwhelmed with stress",
+      "I can't stop worrying",
+      "I feel lonely and isolated",
+      "I'm struggling with my emotions",
+      "I feel like I'm losing control",
+      "I'm having trouble sleeping",
+      "I'm having trouble coping with stress",
+      "I feel hopeless about everything",
+      "My mind won't stop racing",
+      "I'm feeling extremely sad",
     ],
     []
   );
 
-  // Update input when speech transcript changes
   useEffect(() => {
     if (transcript) {
       setInput(transcript);
@@ -350,7 +371,7 @@ function Chatbox() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setConnectionStatus("connected");
-      const welcomeMessage = "Hello! How can I assist you today?";
+      const welcomeMessage = "Hello! How are you feeling today?";
       setMessages([{ text: welcomeMessage, sender: "bot" }]);
       generateQuickReplies();
     }, 1000);
@@ -359,7 +380,9 @@ function Chatbox() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      // You could add a visual feedback here
+      setToastMessage("Copied to clipboard!");
+      setToastVisible(true);
+      setTimeout(() => setToastVisible(false), 2000);
     });
   };
 
@@ -551,6 +574,9 @@ function Chatbox() {
               judgment.
             </Disclaimer>
           </InputArea>
+          {toastVisible && (
+            <ToastNotification>{toastMessage}</ToastNotification>
+          )}
         </>
       )}
     </ChatContainer>

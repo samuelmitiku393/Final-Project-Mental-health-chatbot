@@ -199,76 +199,43 @@ function Register() {
       }
     } catch (err) {
       console.error("Registration error:", err);
+      console.log("Full error response:", err.response); // Debugging log
+
+      let errorMessage =
+        "An unexpected error occurred. Please try again later.";
 
       if (err.response) {
-        // Handle API errors with response data
         const { status, data } = err.response;
 
-        // Handle duplicate email cases
-        if (status === 400 || status === 409) {
-          if (data?.detail) {
-            if (typeof data.detail === "string") {
-              const detailLower = data.detail.toLowerCase();
-              if (
-                detailLower.includes("email") &&
-                (detailLower.includes("already exists") ||
-                  detailLower.includes("already registered"))
-              ) {
-                setError(
-                  "This email is already registered. Please use a different email or login."
-                );
-                return;
-              }
-              setError(data.detail);
-              return;
-            } else if (typeof data.detail === "object") {
-              // Handle case where detail is an object (like Django REST framework validation errors)
-              const firstError = Object.values(data.detail)[0];
-              if (Array.isArray(firstError)) {
-                setError(firstError[0]);
-                return;
-              }
-              setError(firstError);
-              return;
-            }
+        // Handle 400 Bad Request
+        if (status === 400) {
+          if (typeof data === "string") {
+            errorMessage = data;
+          } else if (data?.detail) {
+            errorMessage = data.detail;
+          } else if (data?.message) {
+            errorMessage = data.message;
+          } else if (data?.error) {
+            errorMessage = data.error;
+          } else if (data?.errors) {
+            errorMessage = Object.values(data.errors).flat().join(", ");
           }
         }
-
-        // Handle validation errors
-        if (status === 422 && data?.detail) {
-          if (Array.isArray(data.detail)) {
-            setError(data.detail.map((err) => err.msg).join(", "));
-            return;
-          }
-          setError(data.detail);
-          return;
+        // Handle 409 Conflict (duplicate email)
+        else if (status === 409) {
+          errorMessage = data?.message || "This email is already registered.";
         }
-
-        // Handle other 4xx errors
-        if (status >= 400 && status < 500) {
-          setError(
-            data?.message ||
-              data?.detail ||
-              "Invalid request. Please check your input and try again."
-          );
-          return;
-        }
-
-        // Handle 5xx server errors
-        if (status >= 500) {
-          setError("Server error. Please try again later.");
-          return;
+        // Handle other error statuses
+        else {
+          errorMessage = data?.message || `Error: ${status}`;
         }
       } else if (err.request) {
-        // The request was made but no response was received
-        setError(
-          "No response from server. Please check your connection and try again."
-        );
-        return;
+        errorMessage = "No response from server. Please check your connection.";
+      } else {
+        errorMessage = err.message;
       }
 
-      // Fallback error message
-      setError("An unexpected error occurred. Please try again later.");
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

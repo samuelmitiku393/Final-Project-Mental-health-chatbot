@@ -423,7 +423,7 @@ const TherapistProfile = () => {
         <ErrorMessage>
           <h3>Profile Not Found</h3>
           <p>The requested therapist profile could not be found.</p>
-          <BackButton onClick={() => navigate("/app")}>
+          <BackButton onClick={() => navigate("/app/therapists")}>
             <FaArrowLeft /> Back to Directory
           </BackButton>
         </ErrorMessage>
@@ -433,8 +433,8 @@ const TherapistProfile = () => {
 
   return (
     <Container>
-      <BackButton onClick={() => navigate("/app")}>
-        <FaArrowLeft /> Back to Directory
+      <BackButton onClick={() => navigate("/app/therapists")}>
+        <FaArrowLeft /> Back to Therapist Directory
       </BackButton>
 
       <ProfileCard>
